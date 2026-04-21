@@ -28,12 +28,12 @@ def test_player_initialization():
 
 def test_player_take_damage():
     player = Player(test_data)
-    # base_defense is 100, so damage must exceed it to deal more than 1
-    player.take_damage(110)  # max(1, 110-100) = 10
+    # base_defense is 5, so damage must exceed it to deal more than 1
+    player.take_damage(15)  # max(1, 15-5) = 10
     assert player.hp == 10
     assert not player.dead
 
-    player.take_damage(115)  # max(1, 115-100) = 15
+    player.take_damage(15)  # max(1, 15-5) = 10
     assert player.hp == 0
     assert player.dead
 
@@ -83,14 +83,14 @@ def test_player_unequip_weapon_reverts_damage():
 
 def test_player_equip_armor_increases_defense():
     player = Player({"current_q": 0, "current_r": 0, "health": 100, "max_health": 100})
-    assert player.total_defense == 100  # base defense
+    assert player.total_defense == 5  # base defense
 
     armor = Item({
         "id": 2, "name": "Iron Armor", "item_type": "armor",
         "slot": "armor", "defense": 12,
     })
     player.equip(armor)
-    assert player.total_defense == 112  # 100 base + 12
+    assert player.total_defense == 17  # 5 base + 12
     assert player.equipment["armor"] is armor
 
 
@@ -102,7 +102,7 @@ def test_player_defense_reduces_damage():
     })
     player.equip(armor)
 
-    reduced = player.take_damage(118)  # max(1, 118-108) = 10
+    reduced = player.take_damage(23)  # max(1, 23-13) = 10, total_defense = 5+8 = 13
     assert reduced == 10
     assert player.hp == 90
 
