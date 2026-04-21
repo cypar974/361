@@ -55,11 +55,7 @@ def _insert_monster(
     db.conn.commit()
     return db.cursor.lastrowid
 
-
-# =============================================
 # DB layer: load_monsters
-# =============================================
-
 
 def test_load_monsters_no_equipment(tmp_path, monkeypatch):
     """Monster with no equipment loads correctly."""
@@ -125,11 +121,7 @@ def test_load_monsters_skips_defeated(tmp_path, monkeypatch):
     assert monsters[0]["name"] == "Alive Goblin"
     db.close()
 
-
-# =============================================
 # DB layer: save_monster_equipment
-# =============================================
-
 
 def test_save_monster_equipment(tmp_path, monkeypatch):
     """Saving equipment should persist item IDs to the monster row."""

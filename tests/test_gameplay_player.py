@@ -48,9 +48,7 @@ def test_player_move_updates_position():
     assert player.hunger == 50
 
 
-# =============================================
 # Equipment system tests
-# =============================================
 
 
 def test_player_equip_weapon_increases_damage():

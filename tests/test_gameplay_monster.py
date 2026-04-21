@@ -136,9 +136,7 @@ def test_monster_move_towards_player_other_side():
     assert monster.r == 8
 
 
-# =============================================
-# Equipment and loot tests
-# =============================================
+# Equipment and loot system tests
 
 
 def test_monster_equip_weapon_increases_damage():

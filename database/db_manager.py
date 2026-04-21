@@ -33,9 +33,7 @@ class DatabaseManager:
     def close(self):
         self.conn.close()
 
-    # =========================
-    # Session Management
-    # =========================
+# Session management
 
     def get_session(self, slot_id):
         self.cursor.execute(
@@ -123,9 +121,7 @@ class DatabaseManager:
         )
         self.conn.commit()
 
-    # =========================
-    # World State
-    # =========================
+# World state
 
     def load_world_state(self, session_id):
         """Returns all tiles with discovery status for the session."""
@@ -172,9 +168,7 @@ class DatabaseManager:
 
     
 
-    # =========================
-    # Player State
-    # =========================
+# Player state
 
     def save_player(self, session_id, player_data):
         """
@@ -444,9 +438,8 @@ class DatabaseManager:
         self.cursor.execute(query, (session_id,))
         return [dict(row) for row in self.cursor.fetchall()]
 
-    # =========================
-    # Chests
-    # =========================
+
+# Chests
 
     def load_chests(self, session_id):
         """Returns all persistent chests for the session."""
@@ -508,9 +501,8 @@ class DatabaseManager:
         )
         self.conn.commit()
 
-    # =========================
-    # Monsters
-    # =========================
+
+# Monsters
 
     def load_monsters(self, session_id=None):
         """Load all alive monsters with their equipment item data.
@@ -552,7 +544,6 @@ class DatabaseManager:
         for raw_row in self.cursor.fetchall():
             row = dict(raw_row)
 
-            # 1) load monster definition json by name
             definition = {}
             monster_name = row.get("name")
             if monster_name:
@@ -564,7 +555,6 @@ class DatabaseManager:
                     except Exception as e:
                         print(f"Error loading monster definition {monster_name}: {e}")
 
-            # 2) build nested equipment dicts from DB joins
             equipment_data = {}
             for prefix, slot_name in [
                 ("wi", "weapon"),
@@ -588,11 +578,9 @@ class DatabaseManager:
                 else:
                     equipment_data[f"{slot_name}_item"] = None
 
-            # 3) merge definition + db row
             # definition first, row second => runtime DB state overrides defaults
             merged = {**definition, **row, **equipment_data}
 
-            # 4) if runtime health/damage missing, fall back to monster defaults
             if merged.get("health") is None:
                 merged["health"] = definition.get("default_health", 50)
 
@@ -672,9 +660,8 @@ class DatabaseManager:
         self.cursor.execute("DELETE FROM monsters WHERE current_q = ? AND current_r = ?", (q, r))
         self.conn.commit()
 
-    # =========================
-    # Editor / Map Management
-    # =========================
+
+# Map management
 
     def get_tile(self, q, r):
         self.cursor.execute("SELECT * FROM map_tiles WHERE q=? AND r=?", (q, r))
@@ -711,9 +698,8 @@ class DatabaseManager:
         self.cursor.execute("DELETE FROM map_tiles WHERE q=? AND r=?", (q, r))
         self.conn.commit()
 
-    # =========================
-    # Castle Management
-    # =========================
+
+# Castle management
 
     def get_map_castles(self):
         self.cursor.execute("SELECT * FROM map_castles")

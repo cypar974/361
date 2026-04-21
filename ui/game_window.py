@@ -330,7 +330,6 @@ class GameWindow(Screen):
                     assistant.rt_action_timer = random.randint(25, 35)
 
     def _update_loot_notifications(self, dt_ms):
-        """Advance the active notification and pull the next one off the queue."""
         # Pop next notification if slot is free
         if self.active_loot_notification is None:
             if self.engine.loot_notifications_queue:
@@ -341,7 +340,6 @@ class GameWindow(Screen):
                 }
             return
 
-        # Age the active one
         self.active_loot_notification["age_ms"] += dt_ms
         if self.active_loot_notification["age_ms"] >= self.loot_notification_duration_ms:
             self.active_loot_notification = None
@@ -362,7 +360,6 @@ class GameWindow(Screen):
         text_surf = self.loot_font.render(
             notif["text"], True, (255, 236, 140)
         )
-        # Per-pixel alpha requires a scratch surface
         faded = pygame.Surface(text_surf.get_size(), pygame.SRCALPHA)
         faded.blit(text_surf, (0, 0))
         faded.set_alpha(alpha)

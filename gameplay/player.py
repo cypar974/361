@@ -320,7 +320,6 @@ class Player(Entity):
         - move: interpolates from one tile to another, then returns to idle
         - attack: plays once, then returns to idle
         """
-        # decrement the timer
         if getattr(self, "damage_flash_timer", 0) > 0:
             self.damage_flash_timer -= 1
 
@@ -331,7 +330,6 @@ class Player(Entity):
             self.heal_flash_timer -= 1
 
         if getattr(self, "poison_turns_remaining", 0) > 0 and self.is_alive():
-            # Initialize the timer if it doesn't exist
             if not hasattr(self, "poison_tick_timer"):
                 self.poison_tick_timer = 0
 
@@ -401,7 +399,6 @@ class Player(Entity):
 
             return
 
-        # Apply damage at specific hit frame
         if self.anim_state == "attack":
             if (
                 not self.attack_damage_applied
