@@ -513,8 +513,8 @@ class DatabaseManager:
 
         monster_def_dir = os.path.join("assets", "definitions", "monsters")
 
-        for raw_row in self.cursor.fetchall():
-            row = dict(raw_row)
+        for db_record in self.cursor.fetchall():
+            row = dict(db_record)
             
             # Load JSON definition if it exists
             definition = {}
@@ -525,33 +525,32 @@ class DatabaseManager:
                     with open(path, "r") as f:
                         definition = json.load(f)
 
-            # Map equipment slots
             equipment = {}
-            for p, s in [("wi", "weapon"), ("hi", "head"), ("ci", "chest"), ("li", "legs")]:
-                if row.get(f"{p}_id"):
-                    equipment[f"{s}_item"] = {
-                        "id": row[f"{p}_id"],
-                        "name": row[f"{p}_name"],
-                        "item_type": row[f"{p}_item_type"],
-                        "slot": row[f"{p}_slot"],
-                        "base_damage": row[f"{p}_base_damage"],
-                        "defense": row[f"{p}_defense"],
-                        "durability": row[f"{p}_durability"],
-                        "max_durability": row[f"{p}_max_durability"],
-                        "range": row[f"{p}_range"],
+            for col_prefix, slot_key in [("wi", "weapon"), ("hi", "head"), ("ci", "chest"), ("li", "legs")]:
+                if row.get(f"{col_prefix}_id"):
+                    equipment[f"{slot_key}_item"] = {
+                        "id": row[f"{col_prefix}_id"],
+                        "name": row[f"{col_prefix}_name"],
+                        "item_type": row[f"{col_prefix}_item_type"],
+                        "slot": row[f"{slot_key}_slot"],
+                        "base_damage": row[f"{col_prefix}_base_damage"],
+                        "defense": row[f"{col_prefix}_defense"],
+                        "durability": row[f"{col_prefix}_durability"],
+                        "max_durability": row[f"{col_prefix}_max_durability"],
+                        "range": row[f"{col_prefix}_range"],
                     }
                 else:
-                    equipment[f"{s}_item"] = None
+                    equipment[f"{slot_key}_item"] = None
 
-            # Merge: Default -> JSON -> DB row -> equipment
-            merged = {**definition, **row, **equipment}
+            # Combine: Default -> JSON -> DB row -> equipment
+            monster_config = {**definition, **row, **equipment}
 
             # Ensure minimal stats
-            merged["health"] = row.get("health") or definition.get("default_health", 50)
-            merged["current_hp"] = row.get("current_hp") if row.get("current_hp") is not None else merged["health"]
-            merged["damage"] = row.get("damage") or definition.get("default_damage", 10)
+            monster_config["health"] = row.get("health") or definition.get("default_health", 50)
+            monster_config["current_hp"] = row.get("current_hp") if row.get("current_hp") is not None else monster_config["health"]
+            monster_config["damage"] = row.get("damage") or definition.get("default_damage", 10)
 
-            results.append(merged)
+            results.append(monster_config)
 
         return results
 
@@ -715,11 +714,11 @@ class DatabaseManager:
             )
             row = {"is_spawned": 0, "is_conquered": 0}
         
-        upd_spawned = is_spawned if is_spawned is not None else row["is_spawned"]
-        upd_conquered = is_conquered if is_conquered is not None else row["is_conquered"]
+        new_spawn_flag = is_spawned if is_spawned is not None else row["is_spawned"]
+        new_conquest_flag = is_conquered if is_conquered is not None else row["is_conquered"]
         
         self.cursor.execute(
             "UPDATE session_castles SET is_spawned=?, is_conquered=? WHERE session_id=? AND castle_id=?",
-            (int(upd_spawned), int(upd_conquered), session_id, castle_id)
+            (int(new_spawn_flag), int(new_conquest_flag), session_id, castle_id)
         )
         self.conn.commit()

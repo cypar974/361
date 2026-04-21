@@ -292,17 +292,17 @@ class GameWindow(Screen):
                 if is_monster_animating:
                     continue
 
-                # Initialize real-time action timer 
-                if not hasattr(monster, "rt_action_timer"):
-                    monster.rt_action_timer = random.randint(30, 40) 
+                # Initialize action delay
+                if not hasattr(monster, "ai_wait_ticks"):
+                    monster.ai_wait_ticks = random.randint(30, 40) 
                 
-                monster.rt_action_timer -= 1
+                monster.ai_wait_ticks -= 1
 
                 # Trigger monster AI decision if timer reaches zero
-                if monster.rt_action_timer <= 0:
+                if monster.ai_wait_ticks <= 0:
 
                     monster.decide_and_act(self.engine.world, player)
-                    monster.rt_action_timer = random.randint(30, 40)
+                    monster.ai_wait_ticks = random.randint(30, 40)
             
             # Independent Assistant AI Handling
             for assistant in getattr(self.engine.world, "assistants", []):
@@ -314,20 +314,20 @@ class GameWindow(Screen):
                 if is_busy:
                     continue
 
-                # Initialize or decrement the real-time action timer
-                if not hasattr(assistant, "rt_action_timer"):
+                # Initialize or decrement the action delay
+                if not hasattr(assistant, "ai_wait_ticks"):
                     # Slightly different interval than monsters to prevent synchronized movement
-                    assistant.rt_action_timer = random.randint(25, 35) 
+                    assistant.ai_wait_ticks = random.randint(25, 35) 
                 
-                assistant.rt_action_timer -= 1
+                assistant.ai_wait_ticks -= 1
 
                 # Execute AI decision-making when timer hits zero
-                if assistant.rt_action_timer <= 0:
+                if assistant.ai_wait_ticks <= 0:
                     # Assistant AI logic: Follow player or attack nearby monsters
                     assistant.decide_and_act(self.engine.world, player)
                     
                     # Reset timer for the next action cycle
-                    assistant.rt_action_timer = random.randint(25, 35)
+                    assistant.ai_wait_ticks = random.randint(25, 35)
 
     def _update_loot_notifications(self, dt_ms):
         # Pop next notification if slot is free
@@ -559,8 +559,8 @@ class GameWindow(Screen):
 
         line_y = rect.y + 46
         # Loop through each equipment slot and display the equipped item or "--" if empty
-        for slot_name in ("weapon", "armor"):
-            equipped = player.equipment.get(slot_name)
+        for item_slot in ("weapon", "armor"):
+            equipped = player.equipment.get(item_slot)
             
             label = "--"
             color = (120, 127, 135)
@@ -568,12 +568,12 @@ class GameWindow(Screen):
             if equipped:
                 label = equipped.name
                 color = (186, 220, 198)
-            elif slot_name == "weapon":
+            elif item_slot == "weapon":
                 label = "(No Weapon Equipped)"
                 color = (255, 120, 120) # Red warning
             
             slot_surf = self.font.render(
-                f"{slot_labels[slot_name]}: {label}",
+                f"{slot_labels[item_slot]}: {label}",
                 True,
                 color,
             )
