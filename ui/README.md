@@ -12,6 +12,3 @@ To ensure the UI renders correctly across different screen resolutions, we use *
 - `screen_manager.py`: Manages transitions between different screens (Welcome, Main Menu, Game, etc.).
 - `button.py`: A custom `Button` class for handling clickable UI elements.
 - `welcome.py`, `main_menu.py`, `characters.py`, `game_rules.py`, `save_menu.py`, `game_over.py`, `winner.py`: Individual screen implementations using relative coordinate systems.
-
-> [!CRITICAL]
-> **It is MANDATORY to modify this README for any modification made in this subfolder.**
