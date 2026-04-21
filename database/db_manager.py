@@ -66,27 +66,24 @@ class DatabaseManager:
             )
             session_id = self.cursor.lastrowid
 
-        # Initialize Player State
-
+        # Initialize Player State: Directly load definition based on character type
+        char_def_file = f"{char_type.lower()}.json"
+        char_def_path = os.path.join("assets", "definitions", "player", char_def_file)
+        
         default_texture = None
-        player_def_dir = "assets/definitions/player"
-        if os.path.exists(player_def_dir):
-            for f in os.listdir(player_def_dir):
-                if f.endswith(".json"):
-                    try:
-                        with open(os.path.join(player_def_dir, f), "r") as jf:
-                            data = json.load(jf)
-                            if "animations" in data and "idle" in data["animations"]:
-                                default_texture = data["animations"]["idle"].get(
-                                    "texture"
-                                )
-                            if not default_texture:
-                                default_texture = data.get("texture_file")
+        if os.path.exists(char_def_path):
+            try:
+                with open(char_def_path, "r") as f:
+                    data = json.load(f)
+                    # Use the idle animation texture or the base texture file
+                    idle_anim = data.get("animations", {}).get("idle", {})
+                    default_texture = idle_anim.get("texture") or data.get("texture_file")
+            except Exception as e:
+                print(f"Error reading player def {char_def_file}: {e}")
 
-                            if default_texture:
-                                break  # Found a valid definition
-                    except Exception as e:
-                        print(f"Error reading player def {f}: {e}")
+        # Fallback to archer if our specific skin/type definition is missing
+        if not default_texture:
+            default_texture = "archer"
 
         # Fetch the designated spawn tile from the map + make sure initial spawn is at level 1
         self.cursor.execute("SELECT q, r FROM map_tiles WHERE is_spawn = 1 AND level = 1 LIMIT 1")

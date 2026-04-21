@@ -10,51 +10,38 @@ from ui.base_screen import Screen
 import random
 import os
 
-
 class GameWindow(Screen):
     def __init__(self, manager, slot_id=1, selected_skin=None):
         super().__init__(manager)
-
         slot_id = manager.selected_slot or 1
         selected_skin = manager.selected_skin
-
         pygame.display.set_caption(f"Hex RPG - Slot {slot_id}")
-      
-
         db_file = f"game_data_{slot_id}.db"
         self.db = DatabaseManager(db_file)
         # Ensure session exists (auto-create slot 1)
         if not self.db.get_session(1):
             char_type = getattr(manager, "selected_character", "warrior")
             sid = self.db.create_session(1, char_type=char_type)
-            
             # Add and equip starting weapon
             weapon_name = "basic_bow" if char_type == "archer" else "basic_sword"
             weapon_id = self.db.get_or_create_item(weapon_name)
             if weapon_id:
                 self.db.add_item(sid, weapon_id, quantity=1)
                 self.db.toggle_equip(sid, weapon_id)
-
             if char_type == "archer":
                 # Give the archer some starting arrows
                 arrow_id = self.db.get_or_create_item("arrow")
                 self.db.add_item(sid, arrow_id, quantity=99)
-
         if selected_skin:
             self.db.cursor.execute("UPDATE player_state SET texture_file=? WHERE session_id=1", (selected_skin,))
             self.db.conn.commit()
-
         self.engine = GameEngine(self.db, 1)
-        
         self.engine.world.player.load_inventory(self.db, 1)
-
         # Demo: spawn a visible chest next to the player only if it's a fresh game
-        # (check if inventory only has the starting weapon or less)
         if not self.engine.world.chests and len(self.engine.world.player.inventory) <= 1:
             self.engine.world.spawn_chest()
         self.assets = AssetManager()
         self.renderer = GameRenderer(self.assets)
-
         self.font = pygame.font.SysFont("Arial", 18)
         self.loot_font = pygame.font.SysFont("Arial", 22, bold=True)
         self.frame_index = 0
@@ -63,16 +50,14 @@ class GameWindow(Screen):
         self.inventory_last_selected_index = self.engine.selected_index
         self.last_click_time = 0 # timestamp of the previous click to detect double-clicks
         self.last_clicked_index = -1 # index of the item previously clicked
-
         self.active_loot_notification = None
-        self.loot_notification_duration_ms = 1000  # 1 second fade
+        self.loot_notification_duration_ms = 1000 
 
     
 
     def handle_event(self, event):
         if event.type == pygame.QUIT:
             self.manager.running = False
-            # Key Presses (Single Action)
         if event.type == pygame.MOUSEWHEEL and getattr(
             self.engine, "show_inventory", False
         ):
@@ -80,11 +65,10 @@ class GameWindow(Screen):
             self.inventory_scroll_offset -= event.y
             return
 
-        # Handling clicking on inventory items
         if event.type == pygame.MOUSEBUTTONDOWN and getattr(
             self.engine, "show_inventory", False
         ):
-            if event.button == 1:  # Left click
+            if event.button == 1: # Left click
                 # Re-calculate the list panel dimensions to find if the click is inside the item list area.
                 # These variables must match the layout logic in _draw_inventory so change both if needed
                 panel_x, panel_y = 200, 80
@@ -144,7 +128,6 @@ class GameWindow(Screen):
                 action = "INVENTORY"
                 self.engine.run_turn(action)
 
-            # Let the inventory still read from the input key
             elif getattr(self.engine, "show_inventory", False):
                 action = None
 
@@ -171,25 +154,19 @@ class GameWindow(Screen):
             if on_death_finish and getattr(entity, "death_finished", False):
                 on_death_finish(entity)
         
-        # Remove entities that meet the removal condition
         entities[:] = [e for e in entities if not getattr(e, removal_attr, False)]
                     
     def update(self):
-        # Loot notifications: per-frame (not tied to 50ms anim tick) so fade is smooth
         self._update_loot_notifications(self.manager.clock.get_time())
 
-        # Animation tick
         self.anim_timer += self.manager.clock.get_time()
         if self.anim_timer > 50:
             self.anim_timer = 0
             self.frame_index += 1
-
-            # player animation
             player = self.engine.world.player
             if player:
                 player.update_animation(self.assets)
 
-            # Update monsters, assistants, and chests
             self._update_and_cleanup_entities(
                 self.engine.world.monsters, 
                 "remove_after_death", 
@@ -202,25 +179,20 @@ class GameWindow(Screen):
             )
 
             self._update_and_cleanup_entities(
-                self.engine.world.chests, 
                 "remove_after_open"
             )
 
             if hasattr(self.engine.world, "update_vfx"):
                 self.engine.world.update_vfx()
 
-        # Implement real-time ARPG 
         player = self.engine.world.player
+        
         if not player:
             return
         
         is_player_animating = getattr(player, "is_moving", False) or getattr(player, "is_attacking", False)
         is_inventory_open = getattr(self.engine, "show_inventory", False)
-
-        # Only process game actions if the inventory is closed
         if not is_inventory_open:
-
-            # Only accept new commands if the player has finished their current action
             if not is_player_animating:
                 keys = pygame.key.get_pressed()
                 action = None
@@ -234,9 +206,9 @@ class GameWindow(Screen):
                 elif keys[pygame.K_f] or keys[pygame.K_SPACE]: action = "INTERACT"
 
                 if action:
-                    if action in ("MOVE_WEST", "MOVE_SW"): # q, a
+                    if action in ("MOVE_WEST", "MOVE_SW"):
                         player.flip_x = True
-                    elif action in ("MOVE_EAST", "MOVE_NE"): # e, d
+                    elif action in ("MOVE_EAST", "MOVE_NE"):
                         player.flip_x = False
                     
                     result = self.engine.run_turn(action)
@@ -280,10 +252,8 @@ class GameWindow(Screen):
                                 print(f"deletion failed: {e}")
                         self.manager.selected_slot = None
                         self.manager.switch_screen("game_over")
-                        
                         return
 
-            # Independent Monster AI Handling
             for monster in self.engine.world.monsters:
                 if not monster.is_alive():
                     continue
@@ -292,24 +262,18 @@ class GameWindow(Screen):
                 if is_monster_animating:
                     continue
 
-                # Initialize action delay
                 if not hasattr(monster, "ai_wait_ticks"):
                     monster.ai_wait_ticks = random.randint(30, 40) 
                 
                 monster.ai_wait_ticks -= 1
 
-                # Trigger monster AI decision if timer reaches zero
                 if monster.ai_wait_ticks <= 0:
-
                     monster.decide_and_act(self.engine.world, player)
                     monster.ai_wait_ticks = random.randint(30, 40)
-            
-            # Independent Assistant AI Handling
             for assistant in getattr(self.engine.world, "assistants", []):
                 if not assistant.is_alive():
                     continue
 
-                # Skip if the assistant is currently performing an action
                 is_busy = getattr(assistant, "is_moving", False) or assistant.anim_state in ("move", "attack", "hit")
                 if is_busy:
                     continue
@@ -326,11 +290,9 @@ class GameWindow(Screen):
                     # Assistant AI logic: Follow player or attack nearby monsters
                     assistant.decide_and_act(self.engine.world, player)
                     
-                    # Reset timer for the next action cycle
                     assistant.ai_wait_ticks = random.randint(25, 35)
 
     def _update_loot_notifications(self, dt_ms):
-        # Pop next notification if slot is free
         if self.active_loot_notification is None:
             if self.engine.loot_notifications_queue:
                 name, count = self.engine.loot_notifications_queue.pop(0)
@@ -364,7 +326,6 @@ class GameWindow(Screen):
         faded.blit(text_surf, (0, 0))
         faded.set_alpha(alpha)
 
-        # Center horizontally, anchor above the player's HUD position.
         # Player is always drawn at screen center.
         cx = self.manager.screen.get_width() // 2
         cy = self.manager.screen.get_height() // 2
@@ -373,16 +334,10 @@ class GameWindow(Screen):
 
     def draw(self):
         self.update()
-        # Render World
         self.renderer.render(self.manager.screen, self.engine.world, self.frame_index)
-
-        # Render UI Overlay
-        self._draw_ui()
 
         # Loot pickup text (drawn after world, before inventory overlay)
         self._draw_loot_notification()
-
-        # inventory
         if self.engine.show_inventory:
             self._draw_inventory()
 
@@ -396,9 +351,7 @@ class GameWindow(Screen):
             border_radius=10,
         )
 
-    # Top part of inventory page
     def _draw_inventory_header(self, panel_rect, player):
-        # Create two font size for this part
         title_font = pygame.font.SysFont("Arial", 28, bold=True)
         small_font = pygame.font.SysFont("Arial", 16)
 
@@ -415,19 +368,16 @@ class GameWindow(Screen):
             (162, 204, 198),
         )
 
-        # Place them on the screen
         self.manager.screen.blit(title, (panel_rect.x + 24, panel_rect.y + 18))
         self.manager.screen.blit(controls, (panel_rect.x + 24, panel_rect.y + 52))
         self.manager.screen.blit(summary, (panel_rect.x + 24, panel_rect.y + 80))
 
-    # Left side of inventory page, list all items in inventory and show which one is selected
     def _draw_inventory_list(self, rect, items):
         self._draw_panel_box(rect, (31, 34, 40), (84, 90, 98))
 
         list_title = self.font.render("Items", True, (210, 214, 220))
         self.manager.screen.blit(list_title, (rect.x + 16, rect.y + 12))
 
-        # Empty state
         if not items:
             self.inventory_scroll_offset = 0
             self.inventory_last_selected_index = self.engine.selected_index
@@ -480,7 +430,6 @@ class GameWindow(Screen):
             self.inventory_scroll_offset:self.inventory_scroll_offset + visible_count
         ]
         for display_index, item in enumerate(visible_items):
-            # If the row goes beyond the bottom of the panel, stop drawing more items
             row_y = top + display_index * (row_height + row_gap)
             if row_y + row_height > bottom:
                 break
@@ -544,7 +493,6 @@ class GameWindow(Screen):
             self.manager.screen.blit(name, (row_rect.x + text_x_offset, row_rect.y + 10))
             self.manager.screen.blit(meta, (row_rect.x + text_x_offset, row_rect.y + 28))
 
-    # Right top of inventory page
     def _draw_equipment_summary(self, rect, player):
         self._draw_panel_box(rect, (31, 34, 40), (84, 90, 98))
 
@@ -570,7 +518,7 @@ class GameWindow(Screen):
                 color = (186, 220, 198)
             elif item_slot == "weapon":
                 label = "(No Weapon Equipped)"
-                color = (255, 120, 120) # Red warning
+                color = (255, 120, 120)
             
             slot_surf = self.font.render(
                 f"{slot_labels[item_slot]}: {label}",
@@ -733,9 +681,8 @@ class GameWindow(Screen):
         #Adding level box 
         level = self.engine.world.current_level
 
-        # Colors
         bg_color = (20, 20, 30)
-        border_color = (212, 175, 55)   # gold
+        border_color = (212, 175, 55)
         text_color = (255, 236, 140)
 
         # Box

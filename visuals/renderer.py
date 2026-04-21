@@ -9,12 +9,11 @@ from gameplay import world
 class GameRenderer:
     def __init__(self, asset_manager):
         self.assets = asset_manager
-        # Colors
-        self.COLOR_BG = (17, 17, 17)  # #111
-        self.COLOR_GRASS = (46, 59, 40)  # #2e3b28
-        self.COLOR_WATER = (40, 59, 69)  # #283b45
-        self.COLOR_STONE = (56, 56, 56)  # #383838
-        self.COLOR_OUTLINE = (34, 34, 34)  # #222
+        self.COLOR_BG = (17, 17, 17)
+        self.COLOR_GRASS = (46, 59, 40)
+        self.COLOR_WATER = (40, 59, 69)
+        self.COLOR_STONE = (56, 56, 56)
+        self.COLOR_OUTLINE = (34, 34, 34)
 
         # render cache pool, to reduce lagging
         self.image_cache = {}
@@ -283,12 +282,10 @@ class GameRenderer:
                     star_y_offset=obj.get("star_y", 50),
                 )
 
-        # Iterate through all active visual effects in the world
         if hasattr(world, "effects"):
             for effect in world.effects:
                 edx, edy = 0, 0
 
-                # Special handling for the Healing Effect (follows a target)
                 if effect.__class__.__name__ == "HealEffect":
                     target = effect.target
 
@@ -580,31 +577,14 @@ class GameRenderer:
                 )
                 screen.blit(frame_surf, rect)
                 return
-            except ValueError:
-                pass
+            except (ValueError, pygame.error):
+                return
 
-        # Fallback star if asset is missing (auto generated)
-        points = []
-        outer_rad = 24
-        inner_rad = 10
-        for i in range(10):
-            angle = i * math.pi / 5 - math.pi / 2
-            rad = outer_rad if i % 2 == 0 else inner_rad
-            points.append(
-                (
-                    x + math.cos(angle) * rad,
-                    y - Config.CALIB_OFFSET_Y - star_y_offset + math.sin(angle) * rad,
-                )
-            )
-        pygame.draw.polygon(screen, (255, 215, 0), points)
-        pygame.draw.polygon(screen, (255, 255, 255), points, 2)
-
-    # cloud helper function
     def _draw_cloud_overlay(self, screen, img, x, y, scale=1.3):
+
         width = int(img.get_width() * scale * 1.15)  # slightly wider
         height = int(img.get_height() * scale * 0.9)  # slightly shorter
         cloud = pygame.transform.smoothscale(img, (width, height))
         cloud.set_alpha(210)  # soft fog
         rect = cloud.get_rect(center=(x, y - Config.CALIB_OFFSET_Y))
         screen.blit(cloud, rect)
-

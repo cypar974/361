@@ -26,17 +26,8 @@ import random
 
 
 class GameEngine:
-    """Turn-based coordinator for a single game session.
+    """Turn-based coordinator that handles movement, combat, and loot."""
 
-    Responsibilities:
-      - Translate UI actions into world mutations (movement, attack,
-        pickup, chest open, inventory toggle).
-      - Drive monster turns after the player acts.
-      - Persist player/monster state to the DB after each mutation via
-        the `_safe_save_*` helpers (which swallow IO errors and surface
-        them as SAVE_ERROR return codes, never as crashes).
-      - Expose the loot notification queue for the UI to drain.
-    """
 
     def __init__(self, db, session_id):
         self.db = db
@@ -127,7 +118,7 @@ class GameEngine:
                     damage = player.attack_monster(monster)
 
                     weapon = player.equipment.get("weapon")
-                    if weapon and player.equipment.get("weapon").type == "ranged":
+                    if weapon and weapon.type == "ranged":
                         arrows = [
                             item for item in player.inventory if item.type == "ammo"
                         ]
@@ -137,11 +128,8 @@ class GameEngine:
                             player.inventory.remove(arrow)
                             self.db.remove_item(self.session_id, arrow.id, quantity=1)
 
-                    if not self._safe_save_monster(monster):
-                        return "SAVE_ERROR"
-
-                    if not self._safe_save_player(player):
-                        return "SAVE_ERROR"
+                    self.db.save_monster(monster)
+                    self.db.save_player(self.session_id, player)
 
                     print(f"Player attacked {monster.name} for {damage} damage")
                     return "TURN_TAKEN"
@@ -323,21 +311,6 @@ class GameEngine:
             self.world.sync_inventory_resource_locks()
             return True
 
-    def _safe_save_player(self, player):
-        try:
-            self.db.save_player(self.session_id, player)
-            return True
-        except Exception:
-            return False
-
-    def _safe_save_monster(self, monster):
-        try:
-            if hasattr(self.db, "save_monster"):
-                self.db.save_monster(monster)
-            return True
-        except Exception:
-            return False
-
     def attempt_move(self, dq, dr):
         """Try to move the player by (dq, dr). Returns True if move succeeded, False if blocked."""
         player = self.world.player
@@ -352,7 +325,10 @@ class GameEngine:
         player.move(dq, dr)
         self.world.update_fog_of_war()
 
-        if not self._safe_save_player(player):
+        try:
+            self.db.save_player(self.session_id, player)
+        except Exception:
+            # Revert move if DB save fails (e.g. file lock)
             player.q = old_q
             player.r = old_r
             self.world.update_fog_of_war()
@@ -374,7 +350,7 @@ class GameEngine:
 
         # Saves the monster as defeated in the DB immediately which
         # prevents the reappearing monster bug if the player quits before the next turn
-        self._safe_save_monster(monster)
+        self.db.save_monster(monster)
 
         drops = monster.on_death()
         # Strip any Nones that may have slipped through the drop roll
@@ -438,8 +414,7 @@ class GameEngine:
 
             if player.hearts <= 0:
                 player.hearts = 0
-                if not self._safe_save_player(player):
-                    return "SAVE_ERROR"
+                self.db.save_player(self.session_id, player)
                 return "GAME_OVER"
             
             #If still has hearts left
@@ -450,13 +425,11 @@ class GameEngine:
                 player.hunger = player.max_hunger
                 player.dead = False
                 
-                if not self._safe_save_player(player):
-                    return "SAVE_ERROR"
+                self.db.save_player(self.session_id, player)
 
                 return "RESPAWN"
 
-        if not self._safe_save_player(player):
-            return "SAVE_ERROR"
+        self.db.save_player(self.session_id, player)
 
         # Castle check
         self.world.check_castle_proximity()
@@ -554,10 +527,6 @@ class GameEngine:
 
         if result == "GAME_OVER":
             return "GAME_OVER"
-        
-        if result == "SAVE_ERROR":
-            print("Can't save the player state")
-            return "SAVE_ERROR"
 
         if result != "TURN_TAKEN":
             return "NO_ACTION"
@@ -570,10 +539,6 @@ class GameEngine:
         
         if game_state == "RESPAWN":
             return "RESPAWN"
-        
-        if game_state == "SAVE_ERROR":
-            print("Can't save the player state")
-            return "SAVE_ERROR"
 
         if self.check_level_completed():
             if self.world.current_level == self.world.get_max_level():
@@ -593,9 +558,9 @@ class GameEngine:
         every game loop. This ensures that deaths are persistent.
         """
         for monster in self.world.monsters:
-            self._safe_save_monster(monster)
+            self.db.save_monster(monster)
         for assistant in getattr(self.world, "assistants", []):
-            self._safe_save_monster(assistant)
+            self.db.save_monster(assistant)
             
     def check_level_completed(self):
         current_level_castles = [
@@ -603,10 +568,7 @@ class GameEngine:
         ]
 
         if current_level_castles:
-            # Level is completed only if all castles on this level are conquered
-            # this is canceled by the fact the editor only allows you one castle per level
-            # TO BE TALKED ABOUT WITH THE TEAM
-            return all(c.is_conquered for c in current_level_castles)
+           return current_level_castles[0].is_conquered
         else:
             # Fallback for levels without castles: kill all wandering monsters (OG way)
             current_level_monsters = [
