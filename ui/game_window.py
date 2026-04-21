@@ -179,8 +179,10 @@ class GameWindow(Screen):
             )
 
             self._update_and_cleanup_entities(
+                self.engine.world.chests, 
                 "remove_after_open"
             )
+
 
             if hasattr(self.engine.world, "update_vfx"):
                 self.engine.world.update_vfx()
