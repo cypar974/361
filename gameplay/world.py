@@ -112,7 +112,6 @@ class World:
         self.db.update_session_castle(self.session_id, castle.id, is_spawned=1)
         
         for sp in castle.spawn_points:
-            # Add to db
             tile = self.get_tile(sp["q"], sp["r"])
             lvl = tile.level if tile else castle.level
             
@@ -132,12 +131,10 @@ class World:
         self.load_monsters()
 
     def load_world(self):
-        # Use DB abstraction
         tile_rows = self.db.load_world_state(self.session_id)
         #tile_rows = self.db.load_world_level(self.session_id, self.current_level)
 
         for t_data in tile_rows:
-            # Check if t_data has the keys expected by Tile(data)
             # data.get("is_discovered") might be 0/1 integer, bool conversion handled in Tile logic.
             t = Tile(t_data)
             self.tiles[(t.q, t.r)] = t
@@ -187,7 +184,6 @@ class World:
                     self.assistants.append(entity)
 
             else:
-                # If this monster is already in memory, reuse the existing object.
                 if entity_id in existing_monsters:
                     self.monsters.append(existing_monsters[entity_id])
                 else:
@@ -260,7 +256,6 @@ class World:
             items=bread_items,
         ))
         
-        # Save chest to DB
         if hasattr(self.db, "save_chest"):
             self.db.save_chest(self.session_id, self.player.q + 1, self.player.r, "brown_chest", bread_items)
 
@@ -351,17 +346,15 @@ class World:
         if not tile or not tile.unlocked or not tile.passable:
             return False
 
-        # check if there is a player in the tile
+        # Ensure tile is not occupied by another entity (player, monster, or assistant)
         if self.player and not self.player.dead:
             if self.player.q == q and self.player.r == r:
                 return False
             
-        # check if there is a monster in the tile
         for m in self.monsters:
             if m.is_alive() and m.q == q and m.r == r:
                 return False
 
-        # check if there is a assistant in the tile
         for a in getattr(self, "assistants", []):
             if a.is_alive() and a.q == q and a.r == r:
                 return False

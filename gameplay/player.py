@@ -72,7 +72,6 @@ class Player(Entity):
 
         self.flip_x = False
 
-        # Apply poison damage timer
         self.poison_turns_remaining = 0
         self.poison_damage_per_turn = 0
 
@@ -154,11 +153,10 @@ class Player(Entity):
 
     def apply_equipment(self, db, session_id):
         """Sync equipped items from inventory into player equipment slots."""
-        # Clear existing equipment slots before reapplying
+        # Sync current inventory state to equipped slots
         for slot in self.equipment.keys():
             self.equipment[slot] = None
 
-        # Apply equipped items
         for item in self.inventory:
             if item.equipped and item.is_equippable:
                 self.equipment[item.slot] = item
@@ -220,10 +218,8 @@ class Player(Entity):
             return False
         item = self.inventory[index]
 
-        # Place it on the ground at current position
         db.add_ground_item(item.id, self.q, self.r)
 
-        # Remove from inventory
         db.remove_item(session_id, item.id, quantity=1)
         self.load_inventory(db, session_id)
         return True

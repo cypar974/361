@@ -115,7 +115,6 @@ class GameWindow(Screen):
                         clicked_index = self.inventory_scroll_offset + clicked_row
                         
                         items = self.engine.world.player.inventory
-                        # Check if the calculated index matches an existing item
                         if 0 <= clicked_index < len(items):
                             # Double-Click Detection:
                             # If the same item was clicked twice within 500ms, trigger the "INTERACT" action.
@@ -226,7 +225,6 @@ class GameWindow(Screen):
         if not player:
             return
         
-        # Check current status
         is_player_animating = getattr(player, "is_moving", False) or getattr(player, "is_attacking", False)
         is_inventory_open = getattr(self.engine, "show_inventory", False)
 
@@ -440,7 +438,6 @@ class GameWindow(Screen):
     def _draw_inventory_list(self, rect, items):
         self._draw_panel_box(rect, (31, 34, 40), (84, 90, 98))
 
-        # Title
         list_title = self.font.render("Items", True, (210, 214, 220))
         self.manager.screen.blit(list_title, (rect.x + 16, rect.y + 12))
 
@@ -493,7 +490,6 @@ class GameWindow(Screen):
                 (rect.right - range_text.get_width() - 16, rect.y + 12),
             )
 
-        # Loop through items and display them
         visible_items = items[
             self.inventory_scroll_offset:self.inventory_scroll_offset + visible_count
         ]
@@ -666,7 +662,6 @@ class GameWindow(Screen):
         current_part = ""
 
         for char in word:
-            # If the current character makes the line too long, split here
             candidate = f"{current_part}{char}"
             if font.size(candidate)[0] <= max_width or not current_part:
                 current_part = candidate
@@ -696,11 +691,6 @@ class GameWindow(Screen):
         else:
             line_y = rect.y + 46
 
-        # Loop through the lines of details for the selected item and display them
-        max_text_width = rect.width - 32
-        bottom_padding = 16
-        line_height = 24
-        # Loop through the lines of details for the selected item and display them
         max_text_width = rect.width - 32
         bottom_padding = 16
         line_height = 24

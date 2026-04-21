@@ -48,7 +48,6 @@ class Item:
         self.healing_amount = data.get("healing_amount", 0)
         self.hunger_restore = data.get("hunger_restore", 0)
         
-        # Some items have weird stats so we just make sure 
         self.max_durability = data.get("max_durability")
         if self.max_durability is None:
             self.max_durability = 100
@@ -84,13 +83,10 @@ class Item:
             return False
 
         if self.type == "food":
-            # Check if the item provides HP and the player is missing HP
             needs_healing = (self.healing_amount > 0) and (player.hp < player.max_hp)
 
-            # Check if the item provides hunger restore and the player is hungry
             needs_food = (self.hunger_restore > 0) and (player.hunger < player.max_hunger)
 
-            # If the player is already full on BOTH stats, prevent consumption
             if not needs_healing and not needs_food:
                 return False
             

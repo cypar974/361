@@ -283,9 +283,8 @@ class Monster(Entity):
             self.queued_attack_damage = dmg
             return True
         
+        # Switch to attack animation and store target context
         self.set_anim_state("attack", reset_frame=True)
-
-        # switch to attack animation
         self.pending_attack_target = player
         self.pending_attack_damage = dmg
         self.attack_damage_applied = False
@@ -319,10 +318,9 @@ class Monster(Entity):
         # Ask the GPS for the next step around obstacles
         next_step = self._find_path_next_step(player.q, player.r, is_passable)
 
-        # If a path exists, and the next step isn't exactly the player's tile
+        # If a path is found, move towards it if the tile is passable
         if next_step and next_step != (player.q, player.r):
             nq, nr = next_step
-            # Double check if the tile is actually clear to step on
             if is_passable(nq, nr):
                 self.start_move(nq, nr)
                 return True
@@ -362,7 +360,6 @@ class Monster(Entity):
                         queue.append(nxt)
                         came_from[nxt] = current # type: ignore
 
-        # If we couldn't reach the goal (e.g., player is walled off entirely)
         if goal not in came_from:
             return None
 
@@ -378,9 +375,7 @@ class Monster(Entity):
     
     def wander(self, is_passable) -> bool:
         """
-        So far Minimal wandering: randomly move to a walkable neighbor.
-        Returns True if moved
-        Later may only wander within a restricted area
+        Calculates a random move to a walkable neighbor.
         """
         candidates = [(nq, nr) for (nq, nr) in self.neighbors() if is_passable(nq, nr)]
         if not candidates:
@@ -404,7 +399,6 @@ class Monster(Entity):
 
         target = self._get_best_target(world, player)
         if not target:
-            # If no one is around to fight, just wander or stay idle
             if random.random() < self.ai.wander_chance:
                 self.wander(world.is_passable)
             return {"id": self.id, "action": "idle_no_target"}
@@ -431,7 +425,7 @@ class Monster(Entity):
             else:
                 self.aggro = False
 
-        # If aggro: attack if in range, else move closer
+        # Attack if in range, otherwise chase the target
         if self.aggro:
             if dist <= self.ai.attack_range:
                 if self.can_attack():
@@ -447,7 +441,6 @@ class Monster(Entity):
             paced = self.wander(world.is_passable)
             return {"id": self.id, "action": "pacing_wall" if paced else "trapped", "dist": dist}
 
-        # If not aggro: optionally wander
         if random.random() < self.ai.wander_chance:
             moved = self.wander(world.is_passable)
             return {"id": self.id, "action": "wander" if moved else "idle_blocked", "dist": dist}
@@ -508,13 +501,10 @@ class Monster(Entity):
                 if self.anim_state not in ("hit", "die"):
                     self.set_anim_state("idle", reset_frame=True)
 
-        # move animation: animate frames
         if self.anim_state == "move":
-            # animate move frames
             self.anim_progress += current_anim_speed
             self.anim_tick = int(self.anim_progress)
 
-            # loop move frames while moving
             if self.anim_tick >= frame_count:
                 self.anim_tick = 0
                 self.anim_progress = 0.0
@@ -566,12 +556,10 @@ class Monster(Entity):
                 self.anim_progress = 0.0
 
     def get_animation_config(self):
-        # Get the animation config for the current state
         animations = self.data.get("animations", {}) if hasattr(self, "data") else {}
         return animations.get(self.anim_state) or animations.get("idle") or {}
     
     def get_texture_for_state(self, state):
-        # Try to get the texture for the requested state
         animations = self.data.get("animations", {})
         state_anim = animations.get(state, {})
         if state_anim.get("texture"):
@@ -589,7 +577,6 @@ class Monster(Entity):
         if self.anim_state == new_state and not reset_frame:
             return
 
-        # Change animation state and update the texture
         self.anim_state = new_state
         self.texture = self.get_texture_for_state(new_state)
 
@@ -810,7 +797,6 @@ class DashMonster(Monster):
             self._stop_dash() # Just reset state and start recovery timer
             return
         
-        # Hit wall or another monster
         if not world.is_passable(next_q, next_r):
             target_monster = None
             if hasattr(world, "monsters"):
@@ -819,17 +805,14 @@ class DashMonster(Monster):
                         target_monster = m
                         break
             
-            # Damage the blocking monster
             if target_monster and target_monster != self:
                 target_monster.take_damage(self.damage)
             
-            # Stun self
             self._stop_dash()
             self.is_stunned = True
             self.set_anim_state("stun", reset_frame=True)
             return
 
-        # Path clear, move to next hex
         self.dash_steps += 1
         self.start_move(next_q, next_r)
 
@@ -867,7 +850,6 @@ class SlimeMonster(Monster):
         self._cached_player = None
 
     def decide_and_act(self, world: Any, player: Any) -> dict:
-        # Cache world and player to use during the death explosion
         self._cached_world = world
         self._cached_player = player
         return super().decide_and_act(world, player)
@@ -876,10 +858,8 @@ class SlimeMonster(Monster):
         # Store death status before updating
         was_dead = getattr(self, "death_finished", False)
         
-        # Call base animation logic
         super().update_animation(asset_manager)
         
-        # Trigger explosion when the death animation finishes
         if self.anim_state == "die" and self.death_finished and not was_dead:
             if not self.has_exploded:
                 self._explode()
@@ -909,7 +889,6 @@ class SlimeMonster(Monster):
             radius = 1
             color = (50, 255, 50)
 
-        # Add explosion effect in the world
         if hasattr(world, "effects"):
             effect = CircleExplosion(self.q, self.r, color, radius)
             world.effects.append(effect) 
@@ -918,7 +897,6 @@ class SlimeMonster(Monster):
         explosion_damage = int(self.damage * 1.5)
         
         dist_p = super().hex_distance(self.q, self.r, player.q, player.r)
-        # Check if player is caught in the blast radius
         if dist_p <= radius:
             player.take_damage(explosion_damage)
             
@@ -1022,7 +1000,6 @@ class LinearProjectile(Monster):
 
         target_hit = None
 
-        # Check collision with Player or Assistants
         if next_q == player.q and next_r == player.r:
             target_hit = player
         elif hasattr(world, "assistants"):
@@ -1036,7 +1013,6 @@ class LinearProjectile(Monster):
             self.start_move(next_q, next_r)
             return
 
-        # Hit an obstacle or another monster
         if not world.is_passable(next_q, next_r):
             hit_monster = None
             for m in world.monsters:
@@ -1143,7 +1119,6 @@ class LinearShooterMonster(Monster):
                 for step in range(1, int(dist)):
                     check_q = self.q + direction[0] * step
                     check_r = self.r + direction[1] * step
-                    # If there are obstacles along the way, it indicates that the view is blocked
                     if not world.is_passable(check_q, check_r):
                         path_clear = False
                         break
@@ -1180,7 +1155,6 @@ class LinearShooterMonster(Monster):
                     )
                     projectile.flip_x = self.flip_x
                     
-                    # Bind contextual data to the projectile
                     projectile._cached_world = world
                     projectile._cached_player = player
                     
@@ -1259,7 +1233,6 @@ class StumpSpawn(Monster):
             self.take_damage(999)
             return
 
-        # Use BFS to find the smart path around obstacles
         next_step = self._find_path_next_step(target.q, target.r, world.is_passable)
         
         if next_step and next_step != (target.q, target.r):
@@ -1298,7 +1271,6 @@ class StumpSpawn(Monster):
                     else:
                         self._get_next_tracking_step()
             
-            # Standard animation frame update
             self.anim_progress += self.anim_speeds.get("move", 0.2)
             self.anim_tick = int(self.anim_progress)
             
@@ -1348,13 +1320,11 @@ class StumpMonster(Monster):
                 world = getattr(self, "_cached_world", None)
                 player = getattr(self, "_cached_player", None)
                 if world and player:
-                    # Create the tracking minion
                     spawn = StumpSpawn(self.q, self.r, self.damage, self.level)
                     spawn._cached_world = world
                     spawn._cached_player = player
                     world.monsters.append(spawn)
                     
-                    # Start the tracking loop
                     spawn._get_next_tracking_step()
 
 
@@ -1435,7 +1405,7 @@ class StoneMonster(Monster):
             needed_spots = 2 - len(spots_to_use)
             spots_to_use.extend(valid_radius_2[:needed_spots])
 
-        # If completely cornered and no spots found at all
+        # Final check: spawned monsters
         if not spots_to_use:
             return 
 

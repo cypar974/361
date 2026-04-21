@@ -535,7 +535,6 @@ class GameRenderer:
         if not item.texture:
             return
 
-        # Check if it's animated (keys) or static
         img = self.assets.get_anim_frame(item.texture, frame_index)
         scale, x_shift, y_shift, _ = self.assets.get_layout(item.texture)
 

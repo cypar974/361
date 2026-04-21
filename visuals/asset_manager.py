@@ -117,15 +117,12 @@ class AssetManager:
             x = safe_idx * fw
             y = row * fh
 
-            # Extract subsurface
             if x + fw > sheet.get_width():
                 x = 0
             if y + fh > sheet.get_height():
                 y = 0
-
             frame_surf = sheet.subsurface((x, y, fw, fh))
             
-            # Scale
             target_w = int(fw * scale)
             target_h = int(fh * scale)
             
@@ -142,7 +139,7 @@ class AssetManager:
         if not filename:
             return None
         
-        # Check if it's an animation sheet used as static
+        # Special case: animation sheet being accessed as a static image
         if filename in self.anim_metadata:
             return self.get_anim_frame(filename, 0)
         

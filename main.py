@@ -6,8 +6,6 @@ from ui.base_screen import Screen
 import os
 
 
-#screens (only place all the screens are imported)
-# add to available screen dictionaty attribute
 import ui.welcome as screen1
 import ui.winner as screen2
 import ui.game_rules as screen3
@@ -18,7 +16,6 @@ import ui.game_window as screen7
 import ui.game_over as screen8
 
 
-# singleton and state design pattern
 # singleton: (called first) run __new__(allocate memory) once, __init__(fill the memory) once to have non idempotent elements recreated
 class ScreenManager:
     
@@ -27,18 +24,14 @@ class ScreenManager:
     _initialized = False
 
     # cls = ScreenManager
-    # override __new__
     def __new__(cls):
         # object is never created
         if cls._screenManager_instance is None:
-            # call the parent class to create the object
             cls._screenManager_instance = super().__new__(cls)
-        # object is created, return the same instance
         return cls._screenManager_instance
 
     def __init__(self):
         if self._initialized:
-            #already initialized so don't recreate it
             return
 
         pygame.init()
@@ -50,13 +43,9 @@ class ScreenManager:
 
         pygame.display.set_caption("Beyond") 
 
-        # font has differnet sizes
 
-        # background color (grey)
         self.bg_color = (79, 79, 79)
-        # text color (green)
         self.text_color_green = (154, 205, 50)
-        # text color (white)
         self.text_color_white = (255, 255, 255)
 
         # used for welcome screen to switch after 5 seconds
@@ -67,7 +56,6 @@ class ScreenManager:
         import os
         import platform
         
-        # window size full screen windowed (maximized)
         info = pygame.display.Info()
         self.width, self.height = info.current_w, info.current_h
         
@@ -96,7 +84,6 @@ class ScreenManager:
         
         self.clock = pygame.time.Clock()
         self.running = True
-        #game window specific variables
         self.selected_slot = None
         self.selected_skin = None
 
@@ -112,7 +99,6 @@ class ScreenManager:
             "game_over": screen8.GameOver
         }
 
-        #start screen
         self.current_screen = self.available_screens["welcome"](self)
         self.play_music("start.mp3")
         self.current_music = "start.mp3"
@@ -153,9 +139,9 @@ class ScreenManager:
                     self.current_screen.handle_event(event)
 
             self.current_screen.draw()
-            pygame.display.flip()  # Update the full display surface to the screen
-           
-            self.clock.tick(60)  # Limit to 60 FPS
+            pygame.display.flip()
+            # Game refresh rate setter
+            self.clock.tick(60)
 
         pygame.quit()
         

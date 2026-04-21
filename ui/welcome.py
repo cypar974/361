@@ -46,11 +46,11 @@ class Welcome(Screen):
         Input: None
         Output: None
         """
-        self.manager.screen.fill(self.manager.bg_color) # fill backgroud 
+        self.manager.screen.fill(self.manager.bg_color) 
 
         self.draw_title()
 
-        # images
+        # Draw decoration images based on relative positions
         for image_name, x, y, angle, scale in self.decoration_images:
             # convert relative x and y to absolute position based on current screen size
             self.draw_image(image_name, int(x * self.manager.width), int(y * self.manager.height), angle, scale)
@@ -88,7 +88,6 @@ class Welcome(Screen):
             
         total_text_height += spacing * (len(rendered_texts) - 1) 
 
-        # start y_offset
         y_offset = (self.manager.height - total_text_height) // 2
 
         # blit each line
@@ -113,8 +112,6 @@ class Welcome(Screen):
         image_path = os. path.join(BASE_DIR, '..', 'assets', 'assetBank', 'Hex Tiles', image_name)
         
         image = pygame.image.load(image_path)
-        
-        # adjust image
         original_w, original_h = image.get_size()
         scaled_image = pygame.transform.scale(image, (int(original_w * scale), int(original_h * scale)))
         rotated_image = pygame.transform.rotate(scaled_image, angle)

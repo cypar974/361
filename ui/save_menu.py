@@ -147,7 +147,6 @@ class SaveSelectMenu(Screen):
         mouse_pos = pygame.mouse.get_pos()
 
         for btn in self.buttons:
-            # Check if the save file exists
             slot = btn["value"]
             target_db = f"game_data_{slot}.db"
             file_exists = os.path.exists(target_db)
@@ -263,7 +262,6 @@ class SaveSelectMenu(Screen):
                 else:
                     # Handle Slot Buttons
                     for btn in self.buttons:
-                        # Check if the save file exists
                         slot = btn["value"]
                         target_db = f"game_data_{slot}.db"
                         file_exists = os.path.exists(target_db)
