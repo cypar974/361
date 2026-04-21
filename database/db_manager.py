@@ -170,26 +170,23 @@ class DatabaseManager:
 
 # Player state
 
-    def save_player(self, session_id, player_data):
-        """
-        player_data expected to be a dict or object with:
-        q, r, hp, hunger, xp, hearts
-        """
-        # If it's an object, convert to dict-like access or usage
-        q = getattr(player_data, "q", 0)
-        r = getattr(player_data, "r", 0)
-        hp = getattr(player_data, "hp", 100)
-        hunger = getattr(player_data, "hunger", 100)
-        xp = getattr(player_data, "xp", 0)
-        hearts = getattr(player_data, "hearts", 3)
-
+    def save_player(self, session_id, player):
+        """Saves player position, health, hunger, xp, and hearts."""
         self.cursor.execute(
             """
             UPDATE player_state 
             SET current_q=?, current_r=?, health=?, hunger=?, experience=?, hearts=?
             WHERE session_id=?
             """,
-            (q, r, hp, hunger, xp, hearts, session_id),
+            (
+                player.q, 
+                player.r, 
+                player.hp, 
+                player.hunger, 
+                player.xp, 
+                getattr(player, "hearts", 3), 
+                session_id
+            ),
         )
         self.conn.commit()
 
@@ -246,37 +243,22 @@ class DatabaseManager:
     """
 
     def get_or_create_item(self, item_name):
-        """Finds an item by name or definition name in the DB, or creates it by loading its JSON definition."""
-        # Normalize name first (e.g., "berries.json" -> "Berries")
-        cleaned_name = item_name
-        if cleaned_name.endswith(".json"):
-            cleaned_name = cleaned_name[:-5]
-        cleaned_name = cleaned_name.replace("_", " ").title()
+        """Finds an item by name/filename in the DB, or creates it from its JSON definition."""
+        name = item_name.replace(".json", "").replace("_", " ").title()
 
-        self.cursor.execute("SELECT id FROM items WHERE name=?", (cleaned_name,))
+        self.cursor.execute("SELECT id FROM items WHERE name=?", (name,))
         row = self.cursor.fetchone()
-        if row:
-            return row["id"]
+        if row: return row["id"]
         
-        # Original filename needed for file path
-        filename = item_name
-        if not filename.endswith(".json"):
-            filename = f"{filename}.json"
-
         # Load from json
-        item_path = os.path.join("assets", "definitions", "items", filename)
-        if not os.path.exists(item_path):
-            print(f"Error: Item definition {filename} not found.")
-            return None
-            
-        with open(item_path, "r") as f:
+        filename = item_name if item_name.endswith(".json") else f"{item_name}.json"
+        path = os.path.join("assets", "definitions", "items", filename)
+        
+        with open(path, "r") as f:
             data = json.load(f)
             
-            # The cleaned_name we calculated at the top is what we'll use if the JSON doesn't override it
-            final_name = data.get("name", cleaned_name)
-            if final_name.endswith(".json"):
-                final_name = final_name[:-5]
-            final_name = final_name.replace("_", " ").title()
+            # Use JSON name if provided, otherwise stick with our formatted name
+            final_name = data.get("name", name).replace(".json", "").replace("_", " ").title()
 
             self.cursor.execute(
                 """INSERT INTO items (name, description, item_type, slot, weight, 
@@ -285,22 +267,21 @@ class DatabaseManager:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     final_name,
-
-                data.get("description", ""),
-                data.get("item_type", "misc"),
-                data.get("slot"),
-                data.get("weight", 0),
-                data.get("base_damage", 0),
-                data.get("defense", 0),
-                data.get("max_durability", 0),
-                data.get("durability", data.get("max_durability", 0)),
-                data.get("healing_amount", 0),
-                data.get("hunger_restore", 0),
-                data.get("texture_file"),
-                data.get("power_bonus", 0),
-                data.get("range", 0)
+                    data.get("description", ""),
+                    data.get("item_type", "misc"),
+                    data.get("slot"),
+                    data.get("weight", 0),
+                    data.get("base_damage", 0),
+                    data.get("defense", 0),
+                    data.get("max_durability", 0),
+                    data.get("durability", data.get("max_durability", 0)),
+                    data.get("healing_amount", 0),
+                    data.get("hunger_restore", 0),
+                    data.get("texture_file"),
+                    data.get("power_bonus", 0),
+                    data.get("range", 0)
+                )
             )
-        )
         self.conn.commit()
         return self.cursor.lastrowid
 
@@ -505,29 +486,20 @@ class DatabaseManager:
 # Monsters
 
     def load_monsters(self, session_id=None):
-        """Load all alive monsters with their equipment item data.
-
-        Returns a list of dicts. Each dict has the monster columns plus
-        nested item dicts for each equipment slot (weapon_item, armor_item)
-        — or None if the slot is empty.
-        """
+        """Loads all alive monsters, merging their DB state with JSON definitions."""
         query = """
         SELECT m.*,
-               wi.id AS wi_id, wi.name AS wi_name, wi.item_type AS wi_item_type,
-               wi.slot AS wi_slot, wi.base_damage AS wi_base_damage,
-               wi.defense AS wi_defense, wi.durability AS wi_durability,
+               wi.id AS wi_id, wi.name AS wi_name, wi.item_type AS wi_item_type, wi.slot AS wi_slot, 
+               wi.base_damage AS wi_base_damage, wi.defense AS wi_defense, wi.durability AS wi_durability, 
                wi.max_durability AS wi_max_durability, wi.range AS wi_range,
-               hi.id AS hi_id, hi.name AS hi_name, hi.item_type AS hi_item_type,
-               hi.slot AS hi_slot, hi.base_damage AS hi_base_damage,
-               hi.defense AS hi_defense, hi.durability AS hi_durability,
+               hi.id AS hi_id, hi.name AS hi_name, hi.item_type AS hi_item_type, hi.slot AS hi_slot,
+               hi.base_damage AS hi_base_damage, hi.defense AS hi_defense, hi.durability AS hi_durability,
                hi.max_durability AS hi_max_durability, hi.range AS hi_range,
-               ci.id AS ci_id, ci.name AS ci_name, ci.item_type AS ci_item_type,
-               ci.slot AS ci_slot, ci.base_damage AS ci_base_damage,
-               ci.defense AS ci_defense, ci.durability AS ci_durability,
+               ci.id AS ci_id, ci.name AS ci_name, ci.item_type AS ci_item_type, ci.slot AS ci_slot,
+               ci.base_damage AS ci_base_damage, ci.defense AS ci_defense, ci.durability AS ci_durability,
                ci.max_durability AS ci_max_durability, ci.range AS ci_range,
-               li.id AS li_id, li.name AS li_name, li.item_type AS li_item_type,
-               li.slot AS li_slot, li.base_damage AS li_base_damage,
-               li.defense AS li_defense, li.durability AS li_durability,
+               li.id AS li_id, li.name AS li_name, li.item_type AS li_item_type, li.slot AS li_slot,
+               li.base_damage AS li_base_damage, li.defense AS li_defense, li.durability AS li_durability,
                li.max_durability AS li_max_durability, li.range AS li_range
         FROM monsters m
         LEFT JOIN items wi ON m.weapon_item_id = wi.id
@@ -543,52 +515,41 @@ class DatabaseManager:
 
         for raw_row in self.cursor.fetchall():
             row = dict(raw_row)
-
+            
+            # Load JSON definition if it exists
             definition = {}
-            monster_name = row.get("name")
-            if monster_name:
-                def_path = os.path.join(monster_def_dir, monster_name)
-                if os.path.exists(def_path):
-                    try:
-                        with open(def_path, "r") as f:
-                            definition = json.load(f)
-                    except Exception as e:
-                        print(f"Error loading monster definition {monster_name}: {e}")
+            name = row.get("name")
+            if name:
+                path = os.path.join(monster_def_dir, name)
+                if os.path.exists(path):
+                    with open(path, "r") as f:
+                        definition = json.load(f)
 
-            equipment_data = {}
-            for prefix, slot_name in [
-                ("wi", "weapon"),
-                ("hi", "head"),
-                ("ci", "chest"),
-                ("li", "legs"),
-            ]:
-                item_id = row.get(f"{prefix}_id")
-                if item_id:
-                    equipment_data[f"{slot_name}_item"] = {
-                        "id": item_id,
-                        "name": row[f"{prefix}_name"],
-                        "item_type": row[f"{prefix}_item_type"],
-                        "slot": row[f"{prefix}_slot"],
-                        "base_damage": row[f"{prefix}_base_damage"],
-                        "defense": row[f"{prefix}_defense"],
-                        "durability": row[f"{prefix}_durability"],
-                        "max_durability": row[f"{prefix}_max_durability"],
-                        "range": row[f"{prefix}_range"],
+            # Map equipment slots
+            equipment = {}
+            for p, s in [("wi", "weapon"), ("hi", "head"), ("ci", "chest"), ("li", "legs")]:
+                if row.get(f"{p}_id"):
+                    equipment[f"{s}_item"] = {
+                        "id": row[f"{p}_id"],
+                        "name": row[f"{p}_name"],
+                        "item_type": row[f"{p}_item_type"],
+                        "slot": row[f"{p}_slot"],
+                        "base_damage": row[f"{p}_base_damage"],
+                        "defense": row[f"{p}_defense"],
+                        "durability": row[f"{p}_durability"],
+                        "max_durability": row[f"{p}_max_durability"],
+                        "range": row[f"{p}_range"],
                     }
                 else:
-                    equipment_data[f"{slot_name}_item"] = None
+                    equipment[f"{s}_item"] = None
 
-            # definition first, row second => runtime DB state overrides defaults
-            merged = {**definition, **row, **equipment_data}
+            # Merge: Default -> JSON -> DB row -> equipment
+            merged = {**definition, **row, **equipment}
 
-            if merged.get("health") is None:
-                merged["health"] = definition.get("default_health", 50)
-
-            if merged.get("current_hp") is None:
-                merged["current_hp"] = merged["health"]
-
-            if merged.get("damage") is None:
-                merged["damage"] = definition.get("default_damage", 10)
+            # Ensure minimal stats
+            merged["health"] = row.get("health") or definition.get("default_health", 50)
+            merged["current_hp"] = row.get("current_hp") if row.get("current_hp") is not None else merged["health"]
+            merged["damage"] = row.get("damage") or definition.get("default_damage", 10)
 
             results.append(merged)
 
