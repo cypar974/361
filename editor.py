@@ -215,7 +215,7 @@ class DatabaseManager:
         tile_id = tile_row["id"]
         
         # Insert a new item instance for the map
-        # Note: We copy the definition but set the tile
+        # Copy definition and set tile
         cols = ["name", "description", "item_type", "slot", "weight", 
                 "base_damage", "defense", "max_durability", "durability", 
                 "healing_amount", "hunger_restore", "texture_file", "power_bonus"]
@@ -515,7 +515,7 @@ class Renderer:
         p_tex = tile_data.get("prop_texture_file")
         if p_tex:
             if skip_castles and p_tex in self.am.castle_assets:
-                # We skip rendering it now as it will be rendered in a second pass
+                # Skip rendering (handled in second pass)
                 pass
             else:
                 p_scale = tile_data.get("prop_scale", 1.0)
@@ -1014,7 +1014,7 @@ class MapTab(ttk.Frame):
         cx, cy = Config.CENTER_X, Config.CENTER_Y
         
         # 2. Convert viewport corners to hex coordinates to find the visible range
-        # We add some padding (2 hexes) to avoid popping
+        # Padding (2 hexes) to avoid popping
         padding = 2
         
         # Local pixel coords relative to map center

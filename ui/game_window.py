@@ -46,7 +46,6 @@ class GameWindow(Screen):
 
         self.engine = GameEngine(self.db, 1)
         
-        # Ensure inventory is loaded so we can check if this is a fresh session
         self.engine.world.player.load_inventory(self.db, 1)
 
         # Demo: spawn a visible chest next to the player only if it's a fresh game
@@ -62,14 +61,9 @@ class GameWindow(Screen):
         self.anim_timer = 0
         self.inventory_scroll_offset = 0 # tracks how far the inventory list is scrolled
         self.inventory_last_selected_index = self.engine.selected_index
-        
-        # Timing and state for mouse inventory interactions
         self.last_click_time = 0 # timestamp of the previous click to detect double-clicks
         self.last_clicked_index = -1 # index of the item previously clicked
 
-        # Active floating loot notification (only one shown at a time).
-        # Each entry: {"text": str, "age_ms": int}
-        # Items in engine.loot_notifications_queue drip in one-by-one.
         self.active_loot_notification = None
         self.loot_notification_duration_ms = 1000  # 1 second fade
 
@@ -408,7 +402,6 @@ class GameWindow(Screen):
         if self.engine.show_inventory:
             self._draw_inventory()
 
-    # Helper function which draws a rounded rectangle, keep all inentory panel box consistent
     def _draw_panel_box(self, rect, fill, border, border_width=2):
         pygame.draw.rect(self.manager.screen, fill, rect, border_radius=10)
         pygame.draw.rect(

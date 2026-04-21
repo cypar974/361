@@ -122,7 +122,7 @@ class ScreenManager:
         self._initialized = True
 
     def switch_screen(self, new_screen: str):
-        # Fix: makes sure that the previous screen is cleaned up before switching to the new screen
+        # makes sure that the previous screen is cleaned up before switching to the new screen
         # This prevents the locking of the db file when switching screens
         if hasattr(self, "current_screen") and hasattr(self.current_screen, "cleanup"):
             try:
