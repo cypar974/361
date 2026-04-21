@@ -392,12 +392,12 @@ def test_engine_equip_armor_applies_defense(tmp_path, monkeypatch):
     engine = GameEngine(db, sid)
     player = engine.world.player
 
-    assert player.total_defense == 100  # base defense
+    assert player.total_defense == 5  # base defense
 
     engine.handle_input("INVENTORY")
     engine.handle_input("INTERACT")
 
-    assert player.total_defense == 105  # 100 + 5
+    assert player.total_defense == 10  # 5 base + 5
     assert player.equipment["armor"] is not None
     db.close()
 
