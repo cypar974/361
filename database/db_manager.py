@@ -29,107 +29,6 @@ class DatabaseManager:
                     print(f"Error initializing database: {e}")
             else:
                 print("Error: database.sql not found. Cannot initialize database.")
-        
-        #if level does not exist in monster, must add it
-        try:
-            self.cursor.execute("ALTER TABLE monsters ADD COLUMN level INTEGER DEFAULT 1")
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            pass  # column already exists
-
-        # Add equipment columns to monsters if missing (for older save files)
-        for col in ("weapon_item_id", "head_item_id", "chest_item_id", "legs_item_id"):
-            try:
-                self.cursor.execute(f"ALTER TABLE monsters ADD COLUMN {col} INTEGER REFERENCES items(id) ON DELETE SET NULL")
-                self.conn.commit()
-            except sqlite3.OperationalError:
-                pass  # column already exists
-
-        # Add range column to items if missing
-        try:
-            self.cursor.execute("ALTER TABLE items ADD COLUMN range INTEGER DEFAULT 0")
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            pass  # column already exists
-
-        # Ensure session_chests table exists for versions that don't have it
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS session_chests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER REFERENCES game_sessions(id) ON DELETE CASCADE,
-                q INTEGER NOT NULL,
-                r INTEGER NOT NULL,
-                chest_type TEXT DEFAULT 'brown_chest',
-                items_json TEXT, -- Serialized list of item data
-                UNIQUE(session_id, q, r)
-            )"""
-        )
-        self.conn.commit()
-
-        # Castle system tables
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS map_castles (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                q INTEGER NOT NULL,
-                r INTEGER NOT NULL,
-                level INTEGER DEFAULT 1,
-                asset_file TEXT
-            )"""
-        )
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS map_castle_spawns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                castle_id INTEGER REFERENCES map_castles(id) ON DELETE CASCADE,
-                q INTEGER NOT NULL,
-                r INTEGER NOT NULL,
-                monster_name TEXT NOT NULL,
-                health INTEGER,
-                damage INTEGER
-            )"""
-        )
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS session_castles (
-                session_id INTEGER REFERENCES game_sessions(id) ON DELETE CASCADE,
-                castle_id INTEGER REFERENCES map_castles(id) ON DELETE CASCADE,
-                is_spawned BOOLEAN DEFAULT 0,
-                is_conquered BOOLEAN DEFAULT 0,
-                PRIMARY KEY (session_id, castle_id)
-            )"""
-        )
-        self.conn.commit()
-
-        # These are for database.db that are missging these fields (old saves)
-
-        # Add castle_id to monsters if missing
-        try:
-            self.cursor.execute("ALTER TABLE monsters ADD COLUMN castle_id INTEGER DEFAULT NULL")
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            pass  # column already exists
-
-        # Add asset_file to map_castles if missing
-        try:
-            self.cursor.execute("ALTER TABLE map_castles ADD COLUMN asset_file TEXT")
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            pass  # column already exists
-
-        #add hearts if not present
-        try:
-            self.cursor.execute("ALTER TABLE player_state ADD COLUMN hearts INTEGER DEFAULT 3")
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            pass  # column already exists
-
-        # Add current_hp to monsters for existing databases
-        try:
-            self.cursor.execute("ALTER TABLE monsters ADD COLUMN current_hp INTEGER")
-            self.conn.commit()
-            # If it's the first time to add, copy the existing health value to current_hp to prevent old monsters from dying
-            self.cursor.execute("UPDATE monsters SET current_hp = health WHERE current_hp IS NULL")
-            self.conn.commit()
-        except sqlite3.OperationalError:
-            pass 
 
     def close(self):
         self.conn.close()
@@ -199,7 +98,7 @@ class DatabaseManager:
         else:
             start_q, start_r = 0, 0
             # Ensure 0,0 exists to prevent Foreign Key IntegrityErrors if no spawn was set
-            self.cursor.execute("INSERT OR IGNORE INTO map_tiles (q, r, tile_type) VALUES (0, 0, 'grass')")
+            self.cursor.execute("INSERT OR REPLACE INTO map_tiles (q, r, tile_type) VALUES (0, 0, 'grass')")
 
         self.cursor.execute(
             """INSERT INTO player_state (session_id, current_q, current_r, health, max_health, texture_file) 
@@ -213,7 +112,7 @@ class DatabaseManager:
     def initialize_level_unlocks(self, session_id):
         self.cursor.execute(
             """
-            INSERT OR IGNORE INTO session_world_state (session_id, tile_id, is_unlocked, is_discovered, is_conquered)
+            INSERT OR REPLACE INTO session_world_state (session_id, tile_id, is_unlocked, is_discovered, is_conquered)
             SELECT ?, id,
                 CASE WHEN level = 1 THEN 1 ELSE 0 END,
                 0,

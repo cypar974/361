@@ -102,7 +102,8 @@ CREATE TABLE IF NOT EXISTS items (
     healing_amount INTEGER DEFAULT 0,
     hunger_restore INTEGER DEFAULT 0,
     texture_file TEXT,
-    power_bonus INTEGER DEFAULT 0 -- For artifacts that boost conquest stats
+    power_bonus INTEGER DEFAULT 0, -- For artifacts that boost conquest stats
+    range INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS inventory (
