@@ -337,6 +337,7 @@ class GameWindow(Screen):
     def draw(self):
         self.update()
         self.renderer.render(self.manager.screen, self.engine.world, self.frame_index)
+        self._draw_ui()
 
         # Loot pickup text (drawn after world, before inventory overlay)
         self._draw_loot_notification()
