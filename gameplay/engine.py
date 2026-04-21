@@ -126,7 +126,8 @@ class GameEngine:
                 if monster is not None and getattr(monster, "is_targetable", True):
                     damage = player.attack_monster(monster)
 
-                    if player.equipment.get("weapon").type == "ranged":
+                    weapon = player.equipment.get("weapon")
+                    if weapon and player.equipment.get("weapon").type == "ranged":
                         arrows = [
                             item for item in player.inventory if item.type == "ammo"
                         ]
