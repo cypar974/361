@@ -614,54 +614,42 @@ class GameWindow(Screen):
             lines.append(("No additional details.", (145, 150, 158), None))
         return lines
 
-    def _wrap_text(self, text, font, max_width):
-        # word-wrapping function that splits text into lines that fit within max_width
-        words = text.split()
-        if not words:
+    def _wrap_text(self, text, font, limit):
+        # word-wrapping function that splits text into lines that fit within limit
+        if not text: 
             return [""]
-
-        wrapped_lines = []
-        current_line = ""
-
+        
+        result = []
+        words = text.split(' ')
+        line = ""
+        
         for word in words:
-            # If a single word is too long to fit on a line by itself, we need to split it character by character
-            if font.size(word)[0] > max_width:
-                if current_line:
-                    wrapped_lines.append(current_line)
-                    current_line = ""
-
-                wrapped_lines.extend(self._split_long_word(word, font, max_width))
+            if font.size(word)[0] > limit:
+                if line:
+                    result.append(line)
+                    line = ""
+                
+                frag = ""
+                for char in word:
+                    if font.size(frag + char)[0] <= limit:
+                        frag += char
+                    else:
+                        result.append(frag)
+                        frag = char
+                line = frag
                 continue
 
-            candidate = word if not current_line else f"{current_line} {word}"
-            if font.size(candidate)[0] <= max_width:
-                current_line = candidate
+            # append and check if it fits
+            test = line + (" " if line else "") + word
+            if font.size(test)[0] <= limit:
+                line = test
             else:
-                wrapped_lines.append(current_line)
-                current_line = word
-
-        if current_line:
-            # Append any remaining text as the last line
-            wrapped_lines.append(current_line)
-        return wrapped_lines
-
-    def _split_long_word(self, word, font, max_width):
-        # Split a single long word into parts that fit within max_width
-        parts = []
-        current_part = ""
-
-        for char in word:
-            candidate = f"{current_part}{char}"
-            if font.size(candidate)[0] <= max_width or not current_part:
-                current_part = candidate
-            else:
-                parts.append(current_part)
-                current_part = char
-
-        if current_part:
-            # Append any remaining characters as the last part
-            parts.append(current_part)
-        return parts
+                result.append(line)
+                line = word
+                
+        if line: 
+            result.append(line)
+        return result
 
     # Right bottom of inventory page
     def _draw_selected_item_details(self, rect, item):
