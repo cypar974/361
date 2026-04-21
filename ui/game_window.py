@@ -163,6 +163,16 @@ class GameWindow(Screen):
     def cleanup(self):
         if hasattr(self, "db") and self.db:
             self.db.close()
+
+    def _update_and_cleanup_entities(self, entities, removal_attr, on_death_finish=None):
+        for entity in entities:
+            entity.update_animation(self.assets)
+            
+            if on_death_finish and getattr(entity, "death_finished", False):
+                on_death_finish(entity)
+        
+        # Remove entities that meet the removal condition
+        entities[:] = [e for e in entities if not getattr(e, removal_attr, False)]
                     
     def update(self):
         # Loot notifications: per-frame (not tied to 50ms anim tick) so fade is smooth
@@ -179,43 +189,22 @@ class GameWindow(Screen):
             if player:
                 player.update_animation(self.assets)
 
-            # Update all monnster's sprite frames and handle death cleanup
-            monsters_to_remove = []
+            # Update monsters, assistants, and chests
+            self._update_and_cleanup_entities(
+                self.engine.world.monsters, 
+                "remove_after_death", 
+                on_death_finish=self.engine.drop_monster_loot
+            )
 
-            for monster in self.engine.world.monsters:
-                monster.update_animation(self.assets)
+            self._update_and_cleanup_entities(
+                self.engine.world.assistants, 
+                "remove_after_death"
+            )
 
-                if getattr(monster, "death_finished", False):
-                    self.engine.drop_monster_loot(monster)
-
-                if getattr(monster, "remove_after_death", False):
-                    monsters_to_remove.append(monster)
-
-            for monster in monsters_to_remove:
-                if monster in self.engine.world.monsters:
-                    self.engine.world.monsters.remove(monster)
-
-            # Update all assistant's sprite frames and handle death cleanup
-            assistants_to_remove = []
-
-            for assistant in getattr(self.engine.world, "assistants", []):
-                assistant.update_animation(self.assets)
-
-                if getattr(assistant, "remove_after_death", False):
-                    assistants_to_remove.append(assistant)
-
-            for assistant in assistants_to_remove:
-                if assistant in self.engine.world.assistants:
-                    self.engine.world.assistants.remove(assistant)
-
-            # Chest animations + despawn after opening
-            chests_to_remove = []
-            for chest in self.engine.world.chests:
-                chest.update_animation(self.assets)
-                if chest.remove_after_open:
-                    chests_to_remove.append(chest)
-            for chest in chests_to_remove:
-                self.engine.world.chests.remove(chest)
+            self._update_and_cleanup_entities(
+                self.engine.world.chests, 
+                "remove_after_open"
+            )
 
             if hasattr(self.engine.world, "update_vfx"):
                 self.engine.world.update_vfx()
